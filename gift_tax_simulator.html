@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生前贈与シミュレーター｜暦年課税 vs 相続時精算課税</title>
+<style>
+  :root{
+    --bg:#f6f3ec; --panel:#ffffff; --ink:#2b2722; --sub:#6f685e;
+    --line:#e3ddd1; --navy:#1f5a8f; --navy-bg:#eaf2fa; --navy-ink:#123c63;
+    --green:#137a5f; --green-bg:#e4f3ee; --green-ink:#0a4a39;
+    --amber:#c97f1a; --escape:#2faa7f; --addback:#e3a13b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;
+    line-height:1.6; -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:720px; margin:0 auto; padding:24px 18px 60px}
+  header{margin-bottom:22px}
+  h1{font-size:24px; margin:0 0 6px; letter-spacing:.02em}
+  .tagline{font-size:14px; color:var(--navy); font-weight:600; margin-bottom:10px}
+  .lead{font-size:14px; color:var(--sub); margin:0}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px 18px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .panel h2{font-size:15px; margin:0 0 16px; color:var(--ink)}
+  .ctrl{margin-bottom:20px}
+  .ctrl:last-child{margin-bottom:0}
+  .clabel{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px}
+  .clabel .name{font-size:15px; font-weight:600}
+  .clabel .val{font-size:18px; font-weight:700; color:var(--navy)}
+  .sliderrow{display:flex; align-items:center; gap:10px}
+  .stepbtn{flex:none; width:40px; height:40px; border-radius:10px; border:1px solid var(--line); background:#fff; font-size:22px; color:var(--navy); cursor:pointer; line-height:1; -webkit-tap-highlight-color:transparent}
+  .stepbtn:active{background:var(--navy-bg)}
+  input[type=range]{flex:1; height:34px; accent-color:var(--navy); cursor:pointer}
+  .hint{font-size:12px; color:var(--sub); margin-top:6px}
+  .seg{display:flex; border:1px solid var(--line); border-radius:12px; overflow:hidden}
+  .seg button{flex:1; border:none; background:#fff; padding:13px 8px; font-size:15px; font-family:inherit; color:var(--sub); cursor:pointer; -webkit-tap-highlight-color:transparent}
+  .seg button.on{background:var(--navy); color:#fff; font-weight:700}
+  select{width:100%; font-family:inherit; font-size:16px; padding:12px; border-radius:12px; border:1px solid var(--line); background:#fff; color:var(--ink)}
+  .cards{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  .card{border-radius:16px; padding:18px 16px; border:1px solid}
+  .card.navy{background:var(--navy-bg); border-color:#c4ddf2}
+  .card.green{background:var(--green-bg); border-color:#bfe3d6}
+  .card h3{margin:0 0 12px; font-size:17px}
+  .card.navy h3{color:var(--navy-ink)}
+  .card.green h3{color:var(--green-ink)}
+  .row{display:flex; justify-content:space-between; align-items:baseline; font-size:14px; padding:6px 0}
+  .row .k{color:var(--sub); display:flex; align-items:center; gap:6px}
+  .row .v{font-weight:600; text-align:right}
+  .dot{width:10px; height:10px; border-radius:50%; flex:none; display:inline-block}
+  .bar{height:16px; border-radius:5px; overflow:hidden; display:flex; margin:6px 0 10px; background:#0001}
+  .bar i{display:block; height:100%}
+  .grand{margin-top:10px; padding-top:12px; border-top:1px solid #0001}
+  .grand .lbl{font-size:13px; color:var(--sub)}
+  .grand .amt{font-size:22px; font-weight:700}
+  .card.navy .amt{color:var(--navy-ink)}
+  .card.green .amt{color:var(--green-ink)}
+  .verdict{margin-top:16px; padding:18px; border-radius:16px; font-size:16px; line-height:1.6; text-align:center; font-weight:600}
+  .footnote{font-size:12px; color:var(--sub); line-height:1.7; margin-top:18px}
+  .footnote b{color:var(--ink)}
+  .disclaim{font-size:11.5px; color:var(--sub); margin-top:14px; padding-top:14px; border-top:1px solid var(--line); line-height:1.7}
+  @media(max-width:560px){
+    .cards{grid-template-columns:1fr}
+    h1{font-size:21px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>生前贈与シミュレーター</h1>
+    <div class="tagline">暦年課税 と 相続時精算課税 をくらべる</div>
+    <p class="lead">下の数字を動かすと、「どちらの方法だと相続財産から多く外せるか」「税金がいくらかかりそうか」をその場で計算します。わからない項目はそのままでも大丈夫です。</p>
+  </header>
+
+  <div class="panel">
+    <h2>条件を入れてください</h2>
+
+    <div class="ctrl">
+      <div class="clabel"><span class="name">① 1年に贈与する金額</span><span class="val" id="v-gift">300万円</span></div>
+      <div class="sliderrow">
+        <button class="stepbtn" data-t="gift" data-d="-10">−</button>
+        <input type="range" id="i-gift" min="0" max="1000" step="10" value="300">
+        <button class="stepbtn" data-t="gift" data-d="10">＋</button>
+      </div>
+    </div>
+
+    <div class="ctrl">
+      <div class="clabel"><span class="name">② 何年間わたすか</span><span class="val" id="v-years">10年</span></div>
+      <div class="sliderrow">
+        <button class="stepbtn" data-t="years" data-d="-1">−</button>
+        <input type="range" id="i-years" min="1" max="30" step="1" value="10">
+        <button class="stepbtn" data-t="years" data-d="1">＋</button>
+      </div>
+    </div>
+
+    <div class="ctrl">
+      <div class="clabel"><span class="name">③ 最初の贈与から相続まで</span><span class="val" id="v-death">20年後</span></div>
+      <div class="sliderrow">
+        <button class="stepbtn" data-t="death" data-d="-1">−</button>
+        <input type="range" id="i-death" min="1" max="40" step="1" value="20">
+        <button class="stepbtn" data-t="death" data-d="1">＋</button>
+      </div>
+      <div class="hint">贈与を始めてから、あと何年くらい先に相続が起きそうかの目安です。</div>
+    </div>
+
+    <div class="ctrl">
+      <div class="clabel"><span class="name">④ もらう人</span></div>
+      <div class="seg" id="seg-heir">
+        <button data-v="1" class="on">子（相続人）</button>
+        <button data-v="0">孫</button>
+      </div>
+    </div>
+
+    <div class="ctrl">
+      <div class="clabel"><span class="name">⑤ 相続税のおおよその税率</span></div>
+      <select id="i-rate">
+        <option value="0">かからない（財産が少なめ）</option>
+        <option value="0.10">10%</option>
+        <option value="0.15">15%</option>
+        <option value="0.20" selected>20%（迷ったらこれ）</option>
+        <option value="0.30">30%</option>
+        <option value="0.40">40%</option>
+        <option value="0.55">55%（財産が非常に多い）</option>
+      </select>
+      <div class="hint">財産が多いほど高くなります。わからなければ20%のままでOK。</div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card navy">
+      <h3>暦年課税</h3>
+      <div class="row"><span class="k">わたした合計</span><span class="v" id="r-total"></span></div>
+      <div class="bar" id="r-bar"></div>
+      <div class="row"><span class="k"><i class="dot" style="background:var(--escape)"></i>相続財産から外れた</span><span class="v" id="r-escape"></span></div>
+      <div class="row"><span class="k"><i class="dot" style="background:var(--addback)"></i>相続財産に戻る</span><span class="v" id="r-add"></span></div>
+      <div class="row"><span class="k">生前にはらう贈与税</span><span class="v" id="r-gift"></span></div>
+      <div class="grand"><div class="lbl">税金の合計（概算）</div><div class="amt" id="r-cost"></div></div>
+    </div>
+    <div class="card green">
+      <h3>相続時精算課税</h3>
+      <div class="row"><span class="k">わたした合計</span><span class="v" id="s-total"></span></div>
+      <div class="bar" id="s-bar"></div>
+      <div class="row"><span class="k"><i class="dot" style="background:var(--escape)"></i>相続財産から外れた</span><span class="v" id="s-escape"></span></div>
+      <div class="row"><span class="k"><i class="dot" style="background:var(--addback)"></i>相続財産に戻る</span><span class="v" id="s-add"></span></div>
+      <div class="row"><span class="k">生前にはらう贈与税</span><span class="v" id="s-gift"></span></div>
+      <div class="grand"><div class="lbl">税金の合計（概算）</div><div class="amt" id="s-cost"></div></div>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict"></div>
+
+  <div class="footnote" id="note"></div>
+
+  <div class="disclaim">
+    ※ このツールは2024年（令和6年）の税制改正にもとづいた<b>簡易な目安</b>です。贈与税は特例贈与税率（親・祖父母から18歳以上の子・孫への贈与）、暦年課税の持ち戻しは7年ルール（2031年以降の相続）を前提に計算しています。「税金の合計」は相続税を簡略化した概算で、実際の金額とは異なります。正式な判断は税理士にご相談ください。
+  </div>
+</div>
+
+<script>
+(function(){
+  function fmt(man){
+    man=Math.round(man); var neg=man<0; man=Math.abs(man); var s;
+    if(man>=10000){var oku=Math.floor(man/10000), rem=man%10000; s=oku+'億'+(rem?rem.toLocaleString()+'万':'');}
+    else s=man.toLocaleString()+'万';
+    return (neg?'−':'')+s+'円';
+  }
+  function giftTax(b){ // 特例贈与, 万円
+    if(b<=0) return 0;
+    if(b<=200) return b*0.10;
+    if(b<=400) return b*0.15-10;
+    if(b<=600) return b*0.20-30;
+    if(b<=1000) return b*0.30-90;
+    if(b<=1500) return b*0.40-190;
+    if(b<=3000) return b*0.45-265;
+    if(b<=4500) return b*0.50-415;
+    return b*0.55-640;
+  }
+  var heir=1;
+  function $(id){return document.getElementById(id);}
+  function calc(){
+    var G=+$('i-gift').value, Yraw=+$('i-years').value, D=+$('i-death').value, mRate=+$('i-rate').value;
+    var Y=Math.min(Yraw,D);
+    $('v-gift').textContent=G+'万円';
+    $('v-years').textContent=Yraw+'年';
+    $('v-death').textContent=D+'年後';
+
+    var totalGifted=G*Y;
+
+    // 暦年課税
+    var aGT=giftTax(Math.max(0,G-110));
+    var giftTaxR=aGT*Y;
+    var addFull=0, add47=0, cntAdd=0;
+    if(heir){
+      for(var k=1;k<=Y;k++){var n=D-k;
+        if(n<=3){addFull+=G; cntAdd++;}
+        else if(n<=7){add47+=G; cntAdd++;}
+      }
+    }
+    var addR=heir?(addFull+Math.max(0,add47-100)):0;
+    var escR=totalGifted-addR;
+    var creditR=Math.min(aGT*cntAdd, mRate*addR);
+    var costR=giftTaxR + mRate*addR - creditR;
+
+    // 相続時精算課税
+    var taxable=Math.max(0,G-110)*Y;
+    var giftTaxS=0.20*Math.max(0,taxable-2500);
+    var addS=taxable;
+    var escS=totalGifted-addS;
+    var costS=mRate*addS;
+
+    $('r-total').textContent=fmt(totalGifted);
+    $('r-escape').textContent=fmt(escR);
+    $('r-add').textContent=fmt(addR);
+    $('r-gift').textContent=fmt(giftTaxR);
+    $('r-cost').textContent=fmt(costR);
+    $('s-total').textContent=fmt(totalGifted);
+    $('s-escape').textContent=fmt(escS);
+    $('s-add').textContent=fmt(addS);
+    $('s-gift').textContent=fmt(giftTaxS)+(giftTaxS>0?'※':'');
+    $('s-cost').textContent=fmt(costS);
+
+    function bar(el,esc,add,tot){
+      var pe=tot>0?esc/tot*100:0, pa=tot>0?add/tot*100:0;
+      el.innerHTML='<i style="width:'+pe+'%;background:var(--escape)"></i><i style="width:'+pa+'%;background:var(--addback)"></i>';
+    }
+    bar($('r-bar'),escR,addR,totalGifted);
+    bar($('s-bar'),escS,addS,totalGifted);
+
+    var v=$('verdict'), diff=Math.abs(costR-costS);
+    if(Math.round(costR)===Math.round(costS)){
+      v.style.background='#efe9dc'; v.style.color='var(--sub)';
+      v.textContent='ほぼ互角です。数字を動かして傾向を見てみてください。';
+    } else if(costR<costS){
+      v.style.background='var(--navy-bg)'; v.style.color='var(--navy-ink)';
+      v.innerHTML='この条件では <b>暦年課税</b> が約 '+fmt(diff)+' おトク<br><span style="font-weight:400;font-size:13px">早く・長くわたすほど相続財産から外れる分が増えます</span>';
+    } else {
+      v.style.background='var(--green-bg)'; v.style.color='var(--green-ink)';
+      v.innerHTML='この条件では <b>相続時精算課税</b> が約 '+fmt(diff)+' おトク<br><span style="font-weight:400;font-size:13px">毎年110万円が持ち戻しなしで確実に外れます</span>';
+    }
+
+    var notes=[];
+    if(giftTaxS>0) notes.push('※ 精算課税の贈与税は相続のときに精算・控除されるため、税金の合計には重ねて計算していません。');
+    if(!heir) notes.push('「孫」は相続人でない前提で、暦年贈与は持ち戻しの対象外として計算しています（孫が遺言や保険で財産を受け取る場合などは対象になることがあります）。');
+    if(D<Yraw) notes.push('相続が贈与年数より早いため、実際にわたせる年数は'+Y+'年として計算しています。');
+    $('note').innerHTML=notes.join('<br>');
+  }
+  ['i-gift','i-years','i-death','i-rate'].forEach(function(id){ $(id).addEventListener('input',calc); });
+  document.querySelectorAll('.stepbtn').forEach(function(b){
+    b.addEventListener('click',function(){
+      var inp=$('i-'+b.dataset.t), step=+b.dataset.d;
+      var nv=Math.min(+inp.max, Math.max(+inp.min, (+inp.value)+step));
+      inp.value=nv; calc();
+    });
+  });
+  document.querySelectorAll('#seg-heir button').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('#seg-heir button').forEach(function(x){x.classList.remove('on');});
+      b.classList.add('on'); heir=+b.dataset.v; calc();
+    });
+  });
+  calc();
+})();
+</script>
+</body>
+</html>
